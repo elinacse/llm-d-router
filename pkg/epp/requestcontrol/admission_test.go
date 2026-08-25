@@ -199,12 +199,6 @@ func TestFlowControlRequestAdapter(t *testing.T) {
 func TestFlowControlAdmissionController_Admit(t *testing.T) {
 	t.Parallel()
 	ctx := logutil.NewTestLoggerIntoContext(context.Background())
-	reqCtx := &handlers.RequestContext{
-		SchedulingRequest: &fwksched.InferenceRequest{RequestID: "test-req"},
-		Request: &handlers.Request{
-			Metadata: map[string]any{},
-		},
-	}
 
 	testCases := []struct {
 		name            string
@@ -331,6 +325,15 @@ func TestFlowControlAdmissionController_Admit(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			// Own reqCtx per sub-test: Admit stamps FlowControlQueueDuration and
+			// FlowControlAdmitted on it for the dispatched outcome, and parallel
+			// sub-tests must not share that write target.
+			reqCtx := &handlers.RequestContext{
+				SchedulingRequest: &fwksched.InferenceRequest{RequestID: "test-req"},
+				Request: &handlers.Request{
+					Metadata: map[string]any{},
+				},
+			}
 			fc := &mockFlowController{outcome: tc.fcOutcome, err: tc.fcErr}
 			ac := NewFlowControlAdmissionController(fc, "pool", &mocks.MockEndpointCandidates{Candidates: tc.locatorPods})
 
